@@ -9,18 +9,17 @@ const pool = require('../database');
 //Librerias de autenticacion en passport con islogged and isnotlogged
 const {isLoggedIn, isNotloggedIn} = require('../lib/auth');
 ////////////////////////////////////////////////////////// Funciones por cada ruta
-router.post('/signup', isNotloggedIn, passport.authenticate('local.signup',{
-    successRedirect: '/profile',
-    failureRedirect: '/signup',
-    failureFlash:true
-})) // metodo de registro de un usuario
+router.post('/signup', isNotloggedIn, passport.authenticate('local.signup', {session:false}),
+    (req,res)=>{
+        res.json([{ idUsuario: req.user.idUsuario, username: req.user.username, perfil:req.user.perfil, idCliente:req.user.idCliente}]);
+}); // metodo de registro de un usuario
 
-
+//Metodo de inicio de session
 router.post('/signin',
   passport.authenticate('local.signin', { session: false }),
   (req, res)=> {
     res.json([{ idUsuario: req.user.idUsuario, username: req.user.username, perfil:req.user.perfil, idCliente:req.user.idCliente}]);
-  });
+});
 
 router.get('/profile', isLoggedIn, async (req,res)=>{
     if(req.user.perfil=='Administrador'){ // dashboard administrador

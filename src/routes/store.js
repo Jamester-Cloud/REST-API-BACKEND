@@ -1,7 +1,7 @@
 const {Router} = require('express');
 const router = Router();
 
-const {addToCart, devolver, getOrder, getCart, pay, alterarPedido, denyOrder} = require('../controllers/store_controller');
+const {addToCart, supportTicket, devolver, getOrder, getCart, pay, alterarPedido, denyOrder} = require('../controllers/store_controller');
 
 router.route('/')
     .put(addToCart) // Agrega al carrito
@@ -11,6 +11,9 @@ router.route('/')
 router.route('/orderChange')
     .post(alterarPedido)
     .put(denyOrder)
+
+router.route('/supportTicket')
+    .post(supportTicket)
 
 router.route('/getPedidos')
     .post(getOrder)

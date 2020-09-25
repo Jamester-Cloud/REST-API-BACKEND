@@ -1,7 +1,7 @@
 const {Router} = require('express');
 const router = Router();
 
-const {getUsuarios, updateUser, blockUsers, AdminDashboard, getUser, activeUser} = require('../controllers/user_controller');
+const {getUsuarios, updateUser, getUserAuth, blockUsers, AdminDashboard, getUser, activeUser} = require('../controllers/user_controller');
 
 router.route('/')
     .get(getUsuarios) // Obtiene todo los perfiles en la db  
@@ -10,6 +10,10 @@ router.route('/')
 // con un url en especial asi no se compromete el id por el URL (investigar al respecto)
 router.route('/getUser') 
     .post(getUser) 
+
+router.route('/getAuth') 
+    .post(getUserAuth) 
+
 
 router.route('/activeUser')
     .post(activeUser)

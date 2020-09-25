@@ -1,6 +1,8 @@
-const lista_articulos = require('../models/lista_articulos'); // -> modelo de los perfiles para el include y el update
-const pedido = require('../models/pedido');
-const factura = require('../models/factura');
+const lista_articulos = require('../models/lista_articulos'); // -> modelo de las listas de articulos
+const pedido = require('../models/pedido');    //  modelo de los pedidos
+const factura = require('../models/factura');  // modelo de las facturas
+const Ticket = require('../models/Ticket'); // modelo de los tickets a soporte
+
 //function object
 const lista_articulosArt = {}; // Objeto vacio
 //DB connection
@@ -53,16 +55,19 @@ lista_articulosArt.devolver = async (req,res)=> {
     /// Consultando la cantidad del articulo a devolver en la lista
     try{
         const articulo =  await pool.query("SELECT cantidad, stock, articulo.idArticulo FROM lista_articulos LEFT JOIN articulo ON articulo.idArticulo=lista_articulos.idArticulo WHERE idListaArticulos=?", [idLista]);
+        //id del articulo a devolver
+        let idArticulo = articulo[0].idArticulo;
         //Cantidad a devolver
         let cantidad =  articulo[0].cantidad
         //Stock actual del articulo
         let stockActual = articulo[0].stock
         //Sumando la cantidad al stock
         let devolucion  = stockActual + cantidad
+        //--//
         //empezando la transaccion
         await pool.query("START TRANSACTION")
         //Actualizando el articulo
-        await pool.query("UPDATE articulo SET stock=? WHERE idArticulo=?",[devolucion, articulo[0].idArticulo]);
+        await pool.query("UPDATE articulo SET stock=? WHERE idArticulo=?",[devolucion, idArticulo]);
         //Eliminando el articulo de la lista del cliente
         await pool.query("DELETE FROM lista_articulos WHERE idListaArticulos=?",[idLista]);
         //Commit a la transaccion
@@ -70,22 +75,41 @@ lista_articulosArt.devolver = async (req,res)=> {
         //respuesta
         res.sendStatus(200);
     }catch(err){
-        console.log("El error es: ", err)
         await pool.query("ROLLBACK");
+        console.log("El error es: ", err)
+        
     }  
 };
 
-lista_articulosArt.getOrder= async (req,res)=>{
+lista_articulosArt.getOrder = async (req,res)=>{
     const {idCliente} = req.body;
     const idClient = lista_articulos.idCliente= idCliente;
     try {
-        const ordersComplete = await pool.query('SELECT * FROM pedido LEFT JOIN factura ON pedido.idPedido=factura.idPedido WHERE idCliente=? AND estatusPedido=2' ,[idClient]);
-        const ordersDenegate = await pool.query('SELECT * FROM pedido LEFT JOIN factura ON pedido.idPedido=factura.idPedido WHERE idCliente=? AND estatusPedido=0' ,[idClient]);
-        const ordersImcomplete = await pool.query('SELECT * FROM pedido LEFT JOIN factura ON pedido.idPedido=factura.idPedido WHERE idCliente=? AND estatusPedido=1' ,[idClient]);
+        const ordersComplete = await pool.query('SELECT * FROM factura LEFT JOIN pedido ON pedido.idPedido=factura.idPedido WHERE idCliente=? AND estatusPedidoCliente=2' ,[idClient]);
+        const ordersDenegate = await pool.query('SELECT * FROM factura LEFT JOIN pedido ON pedido.idPedido=factura.idPedido WHERE idCliente=? AND estatusPedidoCliente=0' ,[idClient]);
+        const ordersImcomplete = await pool.query('SELECT * FROM factura LEFT JOIN pedido ON pedido.idPedido=factura.idPedido WHERE factura.idCliente=? AND estatusPedidoCliente=1' ,[idClient]);
         res.json({completados:ordersComplete, Denegados:ordersDenegate, Imcompletos:ordersImcomplete});
-   } catch (err) {  
+    } catch (err) {  
        console.log(err); 
-   }  
+    }  
+}
+
+lista_articulosArt.supportTicket= async(req,res)=>{
+
+    const {idPedido, tituloTicketSoporte, descripcionTicketSoporte, causaTicketSoporte} = req.body;
+
+    let idPedidos = Ticket.idPedido = idPedido
+    let titulo = Ticket.tituloTicketSoporte = tituloTicketSoporte
+    let descripcion = Ticket.descripcionSoporte = descripcionTicketSoporte
+    let causaTicketSoportes = Ticket.causaTicketSoporte = causaTicketSoporte
+
+    try {
+        console.log("Ha llegado a la ruta", req.body);
+        res.sendStatus(200);
+    } catch (error) {
+        console.log(error);
+    }
+
 }
 
 //Hacer pedido
@@ -126,7 +150,7 @@ lista_articulosArt.denyOrder= async (req,res)=>{
     const {idPedido} = req.body;
 
     // Denegando el pedido
-    await pool.query("UPDATE pedido SET estatusPedido=0 WHERE idPedido=?", [idPedido]);
+    await pool.query("UPDATE factura SET estatusPedidoCliente=0 WHERE idPedido=?", [idPedido]);
 
     res.sendStatus(200);
 }
@@ -136,26 +160,26 @@ lista_articulosArt.alterarPedido= async (req,res)=>{
     const {idPedido} = req.body;
 
     //Consultando el pedido para saber el estatus y luego cambiarlo segun se necesite
-    const estatusPedido= await pool.query("SELECT estatusPedido FROM pedido WHERE idPedido=?", [idPedido]);
+    const estatusPedido= await pool.query("SELECT * FROM factura WHERE idPedido=?", [idPedido]);
     // Numero del estatus del pedido
-    const numberPedido = estatusPedido[0].estatusPedido
+    const numberPedido = estatusPedido
     //Condicion que aplicara en caso de ser 1 o 2 etc
-    switch (numberPedido) {
+    switch (numberPedido[0].estatusPedidocliente) {
         case '1':
             //Si esta imcompleto. Cambiar a completo
-            await pool.query("UPDATE pedido SET estatusPedido=2 WHERE idPedido=?", [idPedido]);
+            await pool.query("UPDATE factura SET estatusPedidoCliente=2 WHERE idPedido=?", [idPedido]);
             res.json("Pedido completado");
             break;
     
         case '2':
             // Si esta completo. Cambiar a imcompleto y agregar a revision de pedidos
-            await pool.query("UPDATE pedido SET estatusPedido=1 WHERE idPedido=?", [idPedido]);
+            await pool.query("UPDATE factura SET estatusPedidoCliente=1 WHERE idPedido=?", [idPedido]);
             res.json("Pedido agregado a revision");
             break;
 
         case '0':
             // si esta denegado. Eliminarlo de la base de datos
-            await pool.query("DELETE FROM pedido WHERE idPedido=?", [idPedido]);
+            await pool.query("DELETE FROM factura WHERE idPedido=?", [idPedido]);
             res.json("Pedido eliminado");
             break;
     }

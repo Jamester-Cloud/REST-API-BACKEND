@@ -1,4 +1,4 @@
-const pedido ={
+const pedido = {
     idPedido:Number,
     descripcion:String,
     fechaEntrega:Date,

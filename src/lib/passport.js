@@ -31,53 +31,64 @@ passport.use('local.signup', new localstrategy({
     passReqToCallback:true
 }, async (req,username,pass, done)=>{
     // Datos persona provenientes del formulario
-    const {nombrePersona} = req.body;
-    const {apellidoPersona} = req.body;
-    const {correoPersona} = req.body;
+    const {nombrePersona, apellidoPersona, correoPersona} = req.body;
+
     // objeto con los datos persona
     const newPersona={
         nombrePersona,
         apellidoPersona,
         correoPersona
     };
-    // operacion de insercion (Tabla persona)
-    const lastidPersona = await pool.query('INSERT INTO persona SET ?',[newPersona]);
-    // creamos el objeto nuevoUsuario
-    const newUser={
-        idPersona:0,
-        username,
-        pass,
-    };
-    // se asigna a la propiedad de idPersona el nuevo id proveniente de la recien insercion
-    newUser.idPersona= lastidPersona.insertId; 
-    newUser.pass = await helpers.encryptPasswords(pass); // encripta la contraseña
-    //insertando los datos en la tabla usuario
-    const resultado = await pool.query('INSERT INTO usuario SET ?', [newUser]);
-    //obtneniendo los datos del perfil cliente
-    const perfilCliente = await pool.query('SELECT idPerfil FROM perfil WHERE perfil=?',["Cliente"]);
-    //creando el objeto con los ids que iran en la tabla perfil_usuario
-    perfilNewUser={
-        idUsuario:0,
-        idPerfil:0
-    };
-    //asignacion de valores al objeto
-    perfilNewUser.idUsuario=resultado.insertId;
-    perfilNewUser.idPerfil=perfilCliente[0].idPerfil;
-    //insertando  el id del usuario y del perfil en la DB
-    await pool.query('INSERT INTO perfil_usuario SET ?', [perfilNewUser]);
-    //creacion del objeto cliente
-    newCliente={
-        idPersona:0,
-        descuento:0
+
+    try {
+        await pool.query("START TRANSACTION");
+        // operacion de insercion (Tabla persona)
+        const lastidPersona = await pool.query('INSERT INTO persona SET ?',[newPersona]);
+        // creamos el objeto nuevoUsuario
+        const newUser={
+            idPersona:0,
+            username,
+            pass,
+        };
+        // se asigna a la propiedad de idPersona el nuevo id proveniente de la recien insercion
+        newUser.idPersona= lastidPersona.insertId; 
+        newUser.pass = await helpers.encryptPasswords(pass); // encripta la contraseña
+        //insertando los datos en la tabla usuario
+        const resultado = await pool.query('INSERT INTO usuario SET ?', [newUser]);
+        //obtneniendo los datos del perfil cliente
+        const perfilCliente = await pool.query('SELECT idPerfil FROM perfil WHERE perfil=?',["Cliente"]);
+        //creando el objeto con los ids que iran en la tabla perfil_usuario
+        perfilNewUser={
+            idUsuario:0,
+            idPerfil:0
+        };
+        //asignacion de valores al objeto
+        perfilNewUser.idUsuario=resultado.insertId;
+        perfilNewUser.idPerfil=perfilCliente[0].idPerfil;
+        //insertando  el id del usuario y del perfil en la DB
+        await pool.query('INSERT INTO perfil_usuario SET ?', [perfilNewUser]);
+        //creacion del objeto cliente
+        newCliente={
+            idPersona:0,
+            descuento:0
+        }
+        //asignacion de valores al objeto
+        newCliente.idPersona=lastidPersona.insertId;
+        //Insertando en la tabla cliente
+        await pool.query('INSERT INTO cliente SET ?', [newCliente]);
+        //Retornando el id de usuario para la consulta de datos en la session
+        newUser.id=resultado.insertId;
+
+        const rows = await pool.query('SELECT usuario.idUsuario, username, pass, perfil, idCliente FROM usuario LEFT JOIN perfil_usuario ON perfil_usuario.idUsuario = usuario.idUsuario LEFT JOIN perfil ON perfil_usuario.idPerfil=perfil.idPerfil LEFT JOIN persona ON persona.idPersona=usuario.idPersona LEFT JOIN cliente ON cliente.idPersona=persona.idPersona WHERE usuario.username=?',[newUser.username]);
+        user=rows[0];
+        await pool.query("COMMIT");
+        // retornando la informacion del usuario para su serializacion en la base de datos
+        return done(null, user);
+    } catch (error) {
+        console.log(error);
+        await pool.query("ROLLBACK");
     }
-    //asignacion de valores al objeto
-    newCliente.idPersona=lastidPersona.insertId;
-    //Insertando en la tabla cliente
-    const cliente = await pool.query('INSERT INTO cliente SET ?', [newCliente]);
-    //Retornando el id de usuario para la consulta de datos en la session
-    newUser.id=resultado.insertId;
-    // retornando la informacion del usuario para su serializacion en la base de datos
-    return done(null, newUser);
+
 }));
 
 passport.serializeUser((user, done)=> { // funcion que actua al inicio y registro de un nuevo usuario
