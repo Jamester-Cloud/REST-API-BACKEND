@@ -1,10 +1,16 @@
 const express = require('express');
+
 const app = express();
 const cors = require('cors');
+
 require('./lib/passport');
+
 const session = require('express-session');
+
 const mysqlStore = require('express-mysql-session');
+
 const passport= require('passport');
+
 const {database} = require('./keys');
 // settings
 app.set('port', process.env.PORT || 4000);

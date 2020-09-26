@@ -1,6 +1,6 @@
-const articulo = {
+const articulo = { // -> objeto en javascript
     idArticulo:Number,
-    idCategoria:Number,
+    idCategoria:Number, // -> propiedades
     nombre:String,
     precio:Number,
     stock:Number

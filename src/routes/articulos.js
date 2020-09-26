@@ -8,6 +8,7 @@ router.route('/')
     .post(addArt)
     .put(updateArt)
     .delete(deleteArt);
+// para obtener un articulo
 
 router.route('/getArt')
     .post(getArtWithId)

@@ -5,7 +5,6 @@ module.exports={
         password: process.env.PASSWORD,
         database: process.env.DB,
         acquireTimeout: process.env.TIME_OUT,
-        multipleStatements: process.env.MULTIPLE_SQL,
-        
+        multipleStatements: process.env.MULTIPLE_SQL,  
     }
 }

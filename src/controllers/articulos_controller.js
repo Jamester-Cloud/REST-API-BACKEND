@@ -1,4 +1,6 @@
+// Declaracion del objeto que va a contener los metodos para comunicacion hacia la base de datos
 const articulosCtrl = {};
+// declaracion del modelo
 const articulo = require('../models/articulo');
 //DB Connection
 const pool = require('../database');// librerias para la conexion a la base de datos
@@ -13,9 +15,10 @@ articulosCtrl.getArt = async (req,res) => {
     }
     
 }
-
+// metodo para agregar un articulo
 articulosCtrl.addArt = async (req,res) => {
     const {idCategoria, nombre, precio, stock} = req.body; // -> recibiendo la data del formulario
+    
     articulo.idCategoria = idCategoria;
     articulo.nombre = nombre;
     articulo.precio = precio;
