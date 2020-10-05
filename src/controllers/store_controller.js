@@ -1,6 +1,6 @@
 const lista_articulos = require('../models/lista_articulos'); // -> modelo de las listas de articulos
 const pedido = require('../models/pedido');    //  modelo de los pedidos
-const factura = require('../models/factura');  // modelo de las facturas
+const Factura = require('../models/factura');  // modelo de las facturas
 const Ticket = require('../models/Ticket'); // modelo de los tickets a soporte
 
 //function object
@@ -54,7 +54,9 @@ lista_articulosArt.devolver = async (req,res)=> {
     const idLista = lista_articulos.idListaArticulos = idListaArticulos;
     /// Consultando la cantidad del articulo a devolver en la lista
     try{
-        const articulo =  await pool.query("SELECT cantidad, stock, articulo.idArticulo FROM lista_articulos LEFT JOIN articulo ON articulo.idArticulo=lista_articulos.idArticulo WHERE idListaArticulos=?", [idLista]);
+        await pool.query("START TRANSACTION")
+        
+        const articulo =  await pool.query("SELECT * FROM lista_articulos LEFT JOIN articulo ON articulo.idArticulo=lista_articulos.idArticulo WHERE idListaArticulos=?", [idLista]);
         //id del articulo a devolver
         let idArticulo = articulo[0].idArticulo;
         //Cantidad a devolver
@@ -65,7 +67,7 @@ lista_articulosArt.devolver = async (req,res)=> {
         let devolucion  = stockActual + cantidad
         //--//
         //empezando la transaccion
-        await pool.query("START TRANSACTION")
+        
         //Actualizando el articulo
         await pool.query("UPDATE articulo SET stock=? WHERE idArticulo=?",[devolucion, idArticulo]);
         //Eliminando el articulo de la lista del cliente
@@ -94,43 +96,140 @@ lista_articulosArt.getOrder = async (req,res)=>{
     }  
 }
 
+lista_articulosArt.completeTicket=async (req,res)=>{
+    const {idCliente, feedback} = req.body;
+    let idClientes = Factura.idCliente = idCliente; 
+    let feed = feedback;
+    try {
+        //Empezando la transaccion
+        await pool.query('START TRANSACTION');
+
+        console.log("LLego", req.body);
+        // Actualizando el ticket a completado
+        await pool.query("UPDATE ticket_soporte \
+            LEFT JOIN factura ON factura.idFactura = ticket_soporte.idFactura \
+            LEFT JOIN cliente ON factura.idCliente=cliente.idCliente \
+            SET estatusTicket=2\
+            WHERE factura.idCliente=?", [idClientes]
+        )
+        // Agregando el feedback
+        await pool.query("INSERT INTO feedback (idCliente, feedback) VALUES('"+idClientes+"', '"+feed+"')");
+        //terminando la transaccion
+        await pool.query('COMMIT');
+        // enviando el estado
+        res.sendStatus(200);
+    } catch (error) {
+        await pool.query('ROLLBACK');
+        console.log(error)
+    }
+}
+
 lista_articulosArt.supportTicket= async(req,res)=>{
 
-    const {idPedido, tituloTicketSoporte, descripcionTicketSoporte, causaTicketSoporte} = req.body;
+    const {idFactura, tituloTicketSoporte, descripcionTicketSoporte, causaTicketSoporte} = req.body;
 
-    let idPedidos = Ticket.idPedido = idPedido
+    let idFacturas = Factura.idFactura = idFactura
     let titulo = Ticket.tituloTicketSoporte = tituloTicketSoporte
     let descripcion = Ticket.descripcionSoporte = descripcionTicketSoporte
     let causaTicketSoportes = Ticket.causaTicketSoporte = causaTicketSoporte
 
     try {
-        console.log("Ha llegado a la ruta", req.body);
+        // iniciando transaccion
+        await pool.query("START TRANSACTION");
+        //Inicio de la insercicon del ticket de soporte
+        await pool.query("INSERT INTO ticket_soporte (idFactura, tituloTicket, descripcionSoporte, causaTicketSoporte) VALUES('"+idFacturas+"','"+titulo+"', '"+descripcion+"', '"+causaTicketSoportes+"')");
+        // actualizando la factura para que se refleje el pedido como incompleto
+        await pool.query("UPDATE factura SET estatusPedidocliente=1 WHERE idFactura=?", [idFacturas])
+        //commit a la transacction
+        await pool.query("COMMIT");
+        //Mandando respuesta al front-end
         res.sendStatus(200);
+    } catch (error) {
+        await pool.query("ROLLBACK");
+        console.log(error);
+    }
+
+}
+
+lista_articulosArt.getTicketClient= async (req,res)=>{
+    const {idCliente} = req.body;
+    let id =  Factura.idCliente = idCliente;
+    try {
+        //Consulta cada ticket perteneciente al cliente
+        const ticketsCliente = await pool.query("SELECT * FROM ticket_soporte \
+        LEFT JOIN factura ON factura.idFactura=ticket_soporte.idFactura\
+        LEFT JOIN cliente ON cliente.idCliente=factura.idCliente\
+        WHERE factura.idCliente=?", [id]);
+        //Envio de la informacion al front-end
+        res.json(ticketsCliente);
+
+    } catch (error) {
+        console.log(error);
+    }
+}
+
+
+lista_articulosArt.getAllTickets= async (req,res) =>{
+    
+    try {
+        // Traemos la data de los tickets sin concluir
+        const ticketsNoCompletados = await pool.query('SELECT * FROM ticket_soporte WHERE estatusTicket=1');
+        // Traemos la data de los tickets concluidos
+        const ticketsCompletos = await pool.query('SELECT * FROM ticket_soporte WHERE estatusTicket=2');
+        // Traemos la data de los tickets denegados
+        const ticketsDenegados = await pool.query('SELECT * FROM ticket_soporte WHERE estatusTicket=0');
+
+        res.json({completados:ticketsCompletos, Denegados:ticketsDenegados, Imcompletos:ticketsNoCompletados});
     } catch (error) {
         console.log(error);
     }
 
 }
 
+lista_articulosArt.deleteTicket= async(req,res)=>{
+
+    const {idTicketSoporte} = req.body;
+
+    try {
+        // Traemos la data de los tickets sin concluir
+        await pool.query('DELETE FROM ticket_soporte WHERE idTicketSoporte=?', [idTicketSoporte]);
+        res.sendStatus(200);
+    } catch (error) {
+        console.log(error);
+    }
+}
+
+lista_articulosArt.denyTicket= async(req,res)=>{
+    const {idTicketSoporte} = req.body;
+    try {
+        // Traemos la data de los tickets sin concluir
+        await pool.query('UPDATE ticket_soporte SET estatusTicket=0 WHERE idTicketSoporte=?', [idTicketSoporte]);
+        res.sendStatus(200);
+    } catch (error) {
+        console.log(error);
+    }
+}
+
+
 //Hacer pedido
 lista_articulosArt.pay = async (req,res)=> {
     const {idCliente,descripcion,fechaEntrega,totalApagar} = req.body;
     //factura data
-    const totalPagar=factura.totalApagar=totalApagar
-    const idClient= factura.idCliente = idCliente
+    const totalPagar=Factura.totalApagar=totalApagar
+    const idClient= Factura.idCliente = idCliente
     //pedido data
     const description= pedido.descripcion= descripcion
     const fechaAEntregar= pedido.fechaEntrega = fechaEntrega
-
+    // Pagando el articulo
     try{
        //empezando la transaccion
        await pool.query("START TRANSACTION");
         // Ingresando en la tabla pedido
        const pedido = await pool.query("INSERT INTO pedido(descripcion, fechaEntrega) VALUES('"+description+"','"+fechaAEntregar+"')");
        //ID DEL PEDIDO
-       factura.idPedido=pedido.insertId;
+       Factura.idPedido=pedido.insertId;
        //Ingresando en la tabla factura
-       await pool.query("INSERT INTO factura(idPedido, idCliente, totalApagar) VALUES('"+factura.idPedido+"','"+idClient+"', '"+totalPagar+"')");
+       await pool.query("INSERT INTO factura(idPedido, idCliente, totalApagar) VALUES('"+Factura.idPedido+"','"+idClient+"', '"+totalPagar+"')");
        //Limpiando lista de articulos
        await pool.query('DELETE FROM lista_articulos WHERE idCliente=?',[idClient]);
        //Finalizando la transaccion
@@ -151,7 +250,7 @@ lista_articulosArt.denyOrder= async (req,res)=>{
 
     // Denegando el pedido
     await pool.query("UPDATE factura SET estatusPedidoCliente=0 WHERE idPedido=?", [idPedido]);
-
+    // OK status al front-end
     res.sendStatus(200);
 }
 

@@ -39,6 +39,19 @@ usuariosArt.updateUser = async (req,res)=> {
     
 }
 
+usuariosArt.checkUser= async (req,res)=>{
+    const {username}=req.body;
+    const nombreUsuario=username;
+
+    try {
+     const result =  await pool.query("SELECT * FROM usuario WHERE username LIKE '%"+nombreUsuario+"'    ")
+     
+     res.json(result);
+    } catch (error) {
+        console.log(error)
+    }
+
+}
 usuariosArt.blockUsers = async (req,res)=>{
     const {idUsuario} = req.body
     const idUser = Usuarios.idUsuario = idUsuario;

@@ -1,7 +1,7 @@
 const {Router} = require('express');
 const router = Router();
 
-const {addToCart, supportTicket, devolver, getOrder, getCart, pay, alterarPedido, denyOrder} = require('../controllers/store_controller');
+const {addToCart, getAllTickets, completeTicket, denyTicket, getTicketClient, deleteTicket, supportTicket, devolver, getOrder, getCart, pay, alterarPedido, denyOrder} = require('../controllers/store_controller');
 
 router.route('/')
     .put(addToCart) // Agrega al carrito
@@ -12,11 +12,18 @@ router.route('/orderChange')
     .post(alterarPedido)
     .put(denyOrder)
 
+router.route('/getTicketClient')
+    .post(getTicketClient)
+    .put(completeTicket)
+
 router.route('/supportTicket')
-    .post(supportTicket)
+    .post(supportTicket) // envio de ticket a la DB
+    .get(getAllTickets) // Obteniendo todos los tickets
+    .delete(deleteTicket) // Delete ticket
+    .put(denyTicket) // denegar un ticket
 
 router.route('/getPedidos')
-    .post(getOrder)
+    .post(getOrder) 
 
 router.route('/getCart') 
     // Obtener el carrito
