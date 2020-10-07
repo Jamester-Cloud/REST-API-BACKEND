@@ -39,9 +39,19 @@ passport.use('local.signup', new localstrategy({
         apellidoPersona,
         correoPersona
     };
-
-    try {
+    
+    try {//
         await pool.query("START TRANSACTION");
+        
+        const perfiles =await pool.query('SELECT * FROM perfil');
+
+        if(perfiles.length === 0){
+            await pool.query("INSERT INTO perfil(perfil) VALUES('Administrador')");
+            
+            await pool.query("INSERT INTO perfil(perfil) VALUES('Cliente')");
+        }
+
+        
         // operacion de insercion (Tabla persona)
         const lastidPersona = await pool.query('INSERT INTO persona SET ?',[newPersona]);
         // creamos el objeto nuevoUsuario
@@ -54,7 +64,7 @@ passport.use('local.signup', new localstrategy({
         newUser.idPersona= lastidPersona.insertId; 
         newUser.pass = await helpers.encryptPasswords(pass); // encripta la contraseña
         //insertando los datos en la tabla usuario
-        const resultado = await pool.query('INSERT INTO usuario SET ?', [newUser]);
+        const resultado = await pool.query("INSERT INTO usuario SET ?" , [newUser]);
         //obtneniendo los datos del perfil cliente
         const perfilCliente = await pool.query('SELECT idPerfil FROM perfil WHERE perfil=?',["Cliente"]);
         //creando el objeto con los ids que iran en la tabla perfil_usuario

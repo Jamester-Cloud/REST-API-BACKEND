@@ -1,7 +1,7 @@
 const {Router} = require('express');
 const router = Router();
 
-const {getUsuarios, updateUser, checkUser, getUserAuth, blockUsers, AdminDashboard, getUser, activeUser} = require('../controllers/user_controller');
+const {getUsuarios, updateProfileUser, updateUser, checkUser, getUserAuth, blockUsers, AdminDashboard, getUser, activeUser} = require('../controllers/user_controller');
 
 router.route('/')
     .get(getUsuarios) // Obtiene todo los perfiles en la db  
@@ -16,6 +16,7 @@ router.route('/getAuth')
 
 router.route('/checkUser')
     .post(checkUser)
+    .put(updateProfileUser)
     
 router.route('/activeUser')
     .post(activeUser)

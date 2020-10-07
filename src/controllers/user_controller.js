@@ -6,15 +6,16 @@ const pool = require('../database');
 
 usuariosArt.getUsuarios = async (req,res) => {
     try {
-        const usuarios = await pool.query("SELECT * FROM usuario LEFT JOIN persona ON persona.idPersona=usuario.idPersona");
+        const usuarios = await pool.query("SELECT * FROM usuario \
+        LEFT JOIN persona ON persona.idPersona=usuario.idPersona \
+        LEFT JOIN perfil_usuario ON perfil_usuario.idUsuario=usuario.idUsuario \
+        LEFT JOIN perfil ON perfil.idPerfil=perfil_usuario.idPerfil ");
         res.json(usuarios);
     } catch (error) {
         console.log("Error en: " , error);
     }
     
 }
-
-
 
 usuariosArt.updateUser = async (req,res)=> {
     //Data from form
@@ -102,13 +103,49 @@ usuariosArt.AdminDashboard = async(req,res)=>{
     }
 }
 
-usuariosArt.activeUser = async (req,res)=>{
+
+usuariosArt.activeUser = async (req,res)=>{activeUser
     const {idUsuario} = req.body
-    console.log(idUsuario);
     const idUser = Usuarios.idUsuario = idUsuario;
     try { 
        await pool.query('UPDATE usuario SET estatusUsuario=1 WHERE idUsuario = ?', [idUser]);
         res.send(200); // Request OK response 200
+    } catch (err) {
+        console.log("Error en ", err)
+    } 
+}
+
+usuariosArt.updateProfileUser = async (req,res)=>{
+    const {idUsuario} = req.body
+    const idUser = Usuarios.idUsuario = idUsuario;
+    try { 
+        // se debe consultar cual usuario es el que se va a cambiar
+        const userProfile = await pool.query('SELECT perfil.perfil AS perfilUsuario FROM usuario   \
+        LEFT JOIN perfil_usuario ON perfil_usuario.idUsuario=usuario.idUsuario \
+        LEFT JOIN perfil ON perfil.idPerfil=perfil_usuario.idPerfil WHERE usuario.idUsuario=? ', [idUser]);
+
+        let perfil = userProfile[0].perfilUsuario;
+        
+        switch (perfil) {
+            //Cambiando a administrador
+            case 'Cliente':
+                await pool.query('UPDATE usuario \
+                    LEFT JOIN perfil_usuario ON perfil_usuario.idUsuario=usuario.idUsuario\
+                    LEFT JOIN perfil ON perfil.idPerfil = perfil_usuario.idPerfil \
+                    SET perfil_usuario.idPerfil=1 WHERE usuario.idUsuario = ?', 
+                    [idUser]);
+                res.json(idUser);
+                break;
+            //Cambiando a cliente
+            case 'Administrador':
+                await pool.query('UPDATE usuario \
+                    LEFT JOIN perfil_usuario ON perfil_usuario.idUsuario=usuario.idUsuario\
+                    LEFT JOIN perfil ON perfil.idPerfil = perfil_usuario.idPerfil \
+                    SET perfil_usuario.idPerfil=2 WHERE usuario.idUsuario = ?', 
+                    [idUser]);
+                res.json(idUser);
+                break;
+        }
     } catch (err) {
         console.log("Error en ", err)
     }
