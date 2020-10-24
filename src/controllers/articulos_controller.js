@@ -4,7 +4,8 @@ const articulosCtrl = {};
 const articulo = require('../models/articulo');
 //DB Connection
 const pool = require('../database');// librerias para la conexion a la base de datos
-
+//Formidable for image manipulation
+const formidable = require('formidable');
 
 articulosCtrl.getArt = async (req,res) => {
     try {
@@ -16,32 +17,77 @@ articulosCtrl.getArt = async (req,res) => {
     
 }
 // metodo para agregar un articulo
-articulosCtrl.addArt = async (req,res) => {
-    const {idCategoria, nombre, precio, stock} = req.body; // -> recibiendo la data del formulario
-    
-    articulo.idCategoria = idCategoria;
-    articulo.nombre = nombre;
-    articulo.precio = precio;
-    articulo.stock  = stock;
-    try {
-     await pool.query("INSERT INTO articulo(idCategoria,nombre,precio, stock) VALUES("+articulo.idCategoria+",'"+articulo.nombre+"',"+articulo.precio+", "+articulo.stock+")")
-     ///Fin de la consulta
-     res.send('Articulo Guardado');
-    } catch (err) {
-        console.log('El error es: ', err);
-    }
+articulosCtrl.addArt =(req,res) => {
+    const form = formidable({ multiples: true }); // -> recibiendo la data del formulario
+    form.parse(req, async (err, fields, files) => { // recibiendo el formulario multipart/Data
+        if (err) { /// condicion de error
+          next(err); // continuar
+          return;
+        }
+        // manipulating de data
+        try{
+            
+            // ruta vieja
+            var oldpath = String(files.image.path);
+            // nueva ruta (Cambiar en hosting) 
+            var newpath = 'C:/Users/Jamester/Documents/React-Bakery/front-end/public/img/articles/' + String(files.image.name);
+            
+            // Cambiando de posicion la imagen al carpeta en el servidor
+            fs.rename(oldpath, newpath, function (err) { // moviendo a la ruta de
+                if (err){
+                    throw err;
+                }
+            });
+
+            // Insertando articulos
+            await pool.query("INSERT INTO articulo (idCategoria, nombre, descripcion, precio, stock, imagenArticulo) VALUES("+fields.idCategoria+", '"+fields.nombre+"', '"+fields.descripcion+"', "+fields.precio+", "+fields.stock+", '"+newpath+"')");
+            // Respuesta al servidor
+
+            res.json({fields});
+            
+        } catch(err){
+            console.log(err);
+        }
+    });
+
 }
 
 articulosCtrl.updateArt = async (req,res)=> {
-    const {idArticulo, idCategoria, nombre, precio, stock} = req.body;
-    const idArt= articulo.idArticulo=idArticulo;
-    articulo.idCategoria = idCategoria;
-    articulo.nombre = nombre;
-    articulo.precio = precio;
-    articulo.stock  = stock;
-    try {
-        await pool.query('UPDATE articulo SET ? WHERE idArticulo=?',[articulo, idArt]);
-        res.json({articulos:'Articulo Modificado'})
+    const form = formidable({ multiples: true });
+    
+        try {
+            form.parse(req, async (err, fields, files) => { // recibiendo el formulario multipart/Data
+            if (err) { /// condicion de error
+              next(err); // continuar
+              return;
+            }
+            const idArt= articulo.idArticulo=fields.idArticulo;
+            articulo.idCategoria = fields.idCategoria;
+            articulo.nombre = fields.nombre;
+            articulo.descripcion = fields.descripcion
+            articulo.precio = fields.precio;
+            articulo.stock  = fields.stock;
+        // manipulating de data
+            // ruta vieja
+            var oldpath = String(files.image.path);
+            // nueva ruta (Cambiar en hosting) 
+            var newpath = 'C:/Users/Jamester/Documents/React-Bakery/front-end/public/img/articles/' + String(files.image.name);
+            
+            // Cambiando de posicion la imagen al carpeta en el servidor
+            fs.rename(oldpath, newpath, function (err) { // moviendo a la ruta de
+                if (err){
+                    throw err;
+                }
+            });
+            // cambiando la imagen
+            articulo.imagenArticulo = newpath;
+
+            // modificando articulo
+           await pool.query("UPDATE articulo SET ? WHERE idArticulo=?",[articulo, idArt]); 
+           // Respuesta al servidor
+            res.sendStatus(200);
+            
+            });
     } catch (err) {
         console.log("error en: ",err)
     }

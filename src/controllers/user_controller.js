@@ -41,6 +41,7 @@ usuariosArt.updateUser = async (req,res)=> {
 }
 
 usuariosArt.checkUser= async (req,res)=>{
+    
     const {username}=req.body;
     const nombreUsuario=username;
 
