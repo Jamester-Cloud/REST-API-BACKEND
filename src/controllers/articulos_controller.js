@@ -6,6 +6,8 @@ const articulo = require('../models/articulo');
 const pool = require('../database');// librerias para la conexion a la base de datos
 //Formidable for image manipulation
 const formidable = require('formidable');
+//File system module
+var fs = require('fs');
 
 articulosCtrl.getArt = async (req,res) => {
     try {
